@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from "@/components/ui/use-toast";
 
@@ -130,7 +129,7 @@ export const AudioAnalysisProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [audioRef.current]);
 
-  const startAnalysis = async () => {
+  const startAnalysis = async (): Promise<void> => {
     if (!audioFile) {
       toast({
         title: "Error",
@@ -221,7 +220,7 @@ export const AudioAnalysisProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       }, 200);
 
-      return () => clearInterval(interval);
+      return;
     } catch (error) {
       console.error("Analysis error:", error);
       setIsAnalyzing(false);

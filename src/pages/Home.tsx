@@ -1,11 +1,10 @@
-
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { useAudioAnalysis } from '@/contexts/AudioAnalysisContext';
-import { Upload, Waveform, ArrowRight } from 'lucide-react';
+import { Upload, AudioWaveform, ArrowRight } from 'lucide-react';
 
 const Home: React.FC = () => {
   const { toast } = useToast();
@@ -36,7 +35,6 @@ const Home: React.FC = () => {
   };
 
   const handleFileSelection = (file: File) => {
-    // Check if the file is an audio file
     if (!file.type.startsWith('audio/')) {
       toast({
         title: "Invalid File Type",
@@ -120,7 +118,7 @@ const Home: React.FC = () => {
           {fileName ? (
             <div className="text-center animate-fade-in">
               <div className="mb-4 w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-primary mx-auto">
-                <Waveform size={32} />
+                <AudioWaveform size={32} />
               </div>
               <p className="text-lg font-medium mb-1">{fileName}</p>
               <p className="text-muted-foreground mb-6">File uploaded successfully</p>

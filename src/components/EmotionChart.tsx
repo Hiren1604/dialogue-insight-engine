@@ -47,7 +47,11 @@ const EmotionChart: React.FC = () => {
             <XAxis type="number" domain={[0, 100]} />
             <YAxis type="category" dataKey="name" width={70} />
             <Tooltip 
-              formatter={(value) => [`${value.toFixed(1)}%`, 'Intensity']}
+              formatter={(value: any) => {
+                // Handle different value types safely
+                const numValue = typeof value === 'number' ? value : parseFloat(String(value));
+                return isNaN(numValue) ? [value, 'Intensity'] : [`${numValue.toFixed(1)}%`, 'Intensity'];
+              }}
               contentStyle={{ 
                 borderRadius: '0.5rem', 
                 border: '1px solid #e2e8f0',
