@@ -1,6 +1,10 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from "@/components/ui/use-toast";
+
+type ToneAnalysis = {
+  scores: number[];
+  timestamps: number[];
+};
 
 type ConversationMetrics = {
   sentiment: {
@@ -8,13 +12,7 @@ type ConversationMetrics = {
     neutral: number;
     negative: number;
   };
-  emotionTraits: {
-    joy: number;
-    sadness: number;
-    anger: number;
-    fear: number;
-    surprise: number;
-  };
+  toneAnalysis: ToneAnalysis;
   agentMetrics: {
     responseTime: number;
     talkingRatio: number;
@@ -50,12 +48,9 @@ const initialMetrics: ConversationMetrics = {
     neutral: 0,
     negative: 0,
   },
-  emotionTraits: {
-    joy: 0,
-    sadness: 0,
-    anger: 0,
-    fear: 0,
-    surprise: 0,
+  toneAnalysis: {
+    scores: [],
+    timestamps: []
   },
   agentMetrics: {
     responseTime: 0,
@@ -170,7 +165,7 @@ export const AudioAnalysisProvider: React.FC<{ children: React.ReactNode }> = ({
           setMetrics(prev => ({
             ...prev,
             sentiment: data.sentiment,
-            emotionTraits: data.emotionTraits,
+            toneAnalysis: data.toneAnalysis || {scores: [], timestamps: []},
             agentMetrics: data.agentMetrics,
             transcript: data.transcript,
             summary: data.summary,
@@ -211,13 +206,15 @@ export const AudioAnalysisProvider: React.FC<{ children: React.ReactNode }> = ({
               negative: Math.min(100, Math.random() * progress),
             };
             
-            newMetrics.emotionTraits = {
-              joy: Math.min(100, Math.random() * progress),
-              sadness: Math.min(100, Math.random() * progress),
-              anger: Math.min(100, Math.random() * progress),
-              fear: Math.min(100, Math.random() * progress),
-              surprise: Math.min(100, Math.random() * progress),
-            };
+            // Generate simulated tone analysis data
+            if (progress % 10 === 0) {
+              const newTimestamp = newMetrics.toneAnalysis.timestamps.length > 0 
+                ? newMetrics.toneAnalysis.timestamps[newMetrics.toneAnalysis.timestamps.length - 1] + 2
+                : 0;
+              
+              newMetrics.toneAnalysis.scores.push(Math.random());
+              newMetrics.toneAnalysis.timestamps.push(newTimestamp);
+            }
             
             newMetrics.agentMetrics = {
               responseTime: Math.min(10, 1 + Math.random() * 9),

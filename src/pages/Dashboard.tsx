@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { useAudioAnalysis } from '@/contexts/AudioAnalysisContext';
 import AudioPlayer from '@/components/AudioPlayer';
 import SentimentChart from '@/components/SentimentChart';
-import EmotionChart from '@/components/EmotionChart';
+import ToneAnalysisChart from '@/components/ToneAnalysisChart';
 import MetricsGrid from '@/components/MetricsGrid';
 import CallSummary from '@/components/CallSummary';
 import TranscriptPanel from '@/components/TranscriptPanel';
@@ -63,7 +63,7 @@ const Dashboard: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: staggerDelay * 2 }}
           >
-            <EmotionChart />
+            <ToneAnalysisChart />
           </motion.div>
         </div>
         

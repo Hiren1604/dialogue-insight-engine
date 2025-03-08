@@ -5,10 +5,15 @@ from flask_cors import CORS
 import numpy as np
 import librosa
 import torch
-from transformers import pipeline
+from transformers import pipeline, AutoModelForSpeechSeq2Seq, AutoProcessor
 import tempfile
+import soundfile as sf
 import base64
 import json
+from scipy.signal import find_peaks
+import joblib
+from pydub import AudioSegment
+import math
 
 app = Flask(__name__)
 CORS(app)
@@ -20,12 +25,14 @@ except Exception as e:
     print(f"Failed to load sentiment model: {e}")
     sentiment_model = None
 
-# Initialize audio classification model
+# Initialize transcription model
 try:
-    emotion_classifier = pipeline("audio-classification", model="MIT/ast-finetuned-audioset-10-10-0.4593")
+    processor = AutoProcessor.from_pretrained("openai/whisper-small")
+    transcription_model = AutoModelForSpeechSeq2Seq.from_pretrained("openai/whisper-small")
 except Exception as e:
-    print(f"Failed to load audio classification model: {e}")
-    emotion_classifier = None
+    print(f"Failed to load transcription model: {e}")
+    processor = None
+    transcription_model = None
 
 @app.route('/')
 def home():
@@ -49,18 +56,19 @@ def analyze_audio():
         
         # Load audio and extract features
         y, sr = librosa.load(temp_file.name, sr=None)
+        duration = len(y) / sr
         
         # Generate Sentiment Analysis
         sentiment_scores = analyze_sentiment(y, sr)
         
-        # Generate Emotion Traits
-        emotion_traits = analyze_emotions(temp_file.name)
+        # Generate Agent Tone Analysis over time
+        tone_analysis = analyze_agent_tone(y, sr)
         
         # Generate Agent Metrics
         agent_metrics = generate_agent_metrics(y, sr)
         
-        # Generate Sample Transcript
-        transcript = generate_sample_transcript()
+        # Generate Transcript
+        transcript = generate_transcript(temp_file.name)
         
         # Generate Summary
         summary = "In this conversation, the customer service agent demonstrated professional behavior and addressed the customer's concerns effectively. The agent maintained a positive tone throughout the call and provided clear information."
@@ -74,12 +82,12 @@ def analyze_audio():
         
         return jsonify({
             "sentiment": sentiment_scores,
-            "emotionTraits": emotion_traits,
+            "toneAnalysis": tone_analysis,
             "agentMetrics": agent_metrics,
             "transcript": transcript,
             "summary": summary,
             "conversationType": conversation_type,
-            "duration": len(y) / sr
+            "duration": duration
         })
         
     except Exception as e:
@@ -112,59 +120,62 @@ def analyze_sentiment(audio_data, sample_rate):
         print(f"Error in sentiment analysis: {e}")
         return {"positive": 33.3, "negative": 33.3, "neutral": 33.4}
 
-def analyze_emotions(audio_file_path):
-    """Analyze emotions in the audio file"""
+def analyze_agent_tone(audio_data, sample_rate):
+    """Analyze tone/aggression over time"""
     try:
-        if emotion_classifier is not None:
-            # Use the pre-trained model to classify emotions
-            emotions = emotion_classifier(audio_file_path)
+        # Split audio into segments (e.g., every 2 seconds)
+        segment_length = 2  # seconds
+        hop_length = 1  # seconds for 50% overlap
+        
+        samples_per_segment = int(segment_length * sample_rate)
+        hop_samples = int(hop_length * sample_rate)
+        
+        segments = []
+        timestamps = []
+        
+        # Calculate number of segments
+        num_segments = math.ceil((len(audio_data) - samples_per_segment) / hop_samples) + 1
+        
+        for i in range(num_segments):
+            start_sample = i * hop_samples
+            end_sample = min(start_sample + samples_per_segment, len(audio_data))
             
-            # Map the results to the expected emotion traits
-            emotion_map = {
-                "happy": "joy",
-                "sad": "sadness",
-                "angry": "anger",
-                "fearful": "fear",
-                "surprised": "surprise"
-            }
-            
-            # Initialize default values
-            emotion_traits = {
-                "joy": 0,
-                "sadness": 0,
-                "anger": 0,
-                "fear": 0,
-                "surprise": 0
-            }
-            
-            # Update values based on classifier output
-            for emotion in emotions:
-                for key, value in emotion_map.items():
-                    if key in emotion["label"].lower() and emotion["score"] > 0:
-                        emotion_traits[value] = emotion["score"] * 100
-            
-            # Ensure all values are between 0-100
-            for key in emotion_traits:
-                emotion_traits[key] = min(max(emotion_traits[key], 0), 100)
+            if end_sample - start_sample < samples_per_segment / 2:
+                # Skip segments that are too short
+                continue
                 
-            return emotion_traits
-        else:
-            # Fallback to random values if model not loaded
-            return {
-                "joy": float(np.random.uniform(0, 100)),
-                "sadness": float(np.random.uniform(0, 100)),
-                "anger": float(np.random.uniform(0, 100)),
-                "fear": float(np.random.uniform(0, 100)),
-                "surprise": float(np.random.uniform(0, 100))
-            }
-    except Exception as e:
-        print(f"Error in emotion analysis: {e}")
+            segment = audio_data[start_sample:end_sample]
+            
+            # Extract features for tone/aggression analysis
+            rms = np.mean(librosa.feature.rms(y=segment))
+            zcr = np.mean(librosa.feature.zero_crossing_rate(segment))
+            spectral_centroid = np.mean(librosa.feature.spectral_centroid(y=segment, sr=sample_rate))
+            
+            # Normalize features
+            rms_norm = min(rms * 20, 1.0)
+            zcr_norm = min(zcr * 100, 1.0)
+            spectral_norm = min(spectral_centroid / 5000, 1.0)
+            
+            # Compute aggression score (0-1)
+            # Higher RMS (loudness), ZCR, and spectral centroid often correlate with more aggressive speech
+            aggression_score = (rms_norm * 0.5 + zcr_norm * 0.3 + spectral_norm * 0.2)
+            
+            # Add random variation for demo
+            aggression_score = min(max(aggression_score + np.random.normal(0, 0.1), 0.0), 1.0)
+            
+            segments.append(float(aggression_score))
+            timestamps.append(float(start_sample / sample_rate))
+        
         return {
-            "joy": float(np.random.uniform(0, 100)),
-            "sadness": float(np.random.uniform(0, 100)),
-            "anger": float(np.random.uniform(0, 100)),
-            "fear": float(np.random.uniform(0, 100)),
-            "surprise": float(np.random.uniform(0, 100))
+            "scores": segments,
+            "timestamps": timestamps
+        }
+    except Exception as e:
+        print(f"Error in agent tone analysis: {e}")
+        # Return dummy data
+        return {
+            "scores": [float(np.random.uniform(0, 1)) for _ in range(10)],
+            "timestamps": [float(i) for i in range(0, 20, 2)]
         }
 
 def generate_agent_metrics(audio_data, sample_rate):
@@ -204,20 +215,59 @@ def generate_agent_metrics(audio_data, sample_rate):
             "resolutionRate": float(np.random.uniform(0, 100))
         }
 
-def generate_sample_transcript():
-    """Generate a sample transcript for demo purposes"""
-    transcript_parts = [
-        "Agent: Hello, thank you for calling customer service. How may I help you today?",
-        "Customer: Hi, I'm having trouble with my recent order. It hasn't arrived yet.",
-        "Agent: I apologize for the inconvenience. Let me check the status of your order. Could you provide your order number?",
-        "Customer: Yes, it's ABC12345.",
-        "Agent: Thank you. I see your order was shipped two days ago and is scheduled for delivery tomorrow.",
-        "Customer: That's great news! I was worried it got lost.",
-        "Agent: I understand your concern. Is there anything else I can help you with today?",
-        "Customer: No, that's all. Thank you for your help.",
-        "Agent: You're welcome. Have a great day!"
-    ]
-    return transcript_parts
+def generate_transcript(audio_file_path):
+    """Generate transcript from audio file"""
+    try:
+        if processor is not None and transcription_model is not None:
+            # Load audio
+            audio, sr = librosa.load(audio_file_path, sr=16000)
+            
+            # Process audio for model input
+            input_features = processor(audio, sampling_rate=16000, return_tensors="pt").input_features
+            
+            # Generate token ids
+            predicted_ids = transcription_model.generate(input_features)
+            
+            # Decode token ids to text
+            full_transcript = processor.batch_decode(predicted_ids, skip_special_tokens=True)[0]
+            
+            # Split transcript into segments for agent and customer
+            # This is a simplified approach - in a real system, you'd use speaker diarization
+            sentences = full_transcript.split('. ')
+            
+            formatted_transcript = []
+            for i, sentence in enumerate(sentences):
+                if sentence:
+                    speaker = "Agent: " if i % 2 == 0 else "Customer: "
+                    formatted_transcript.append(speaker + sentence.strip() + ('' if sentence.endswith('.') else '.'))
+            
+            return formatted_transcript
+        else:
+            # Fallback to dummy text if models aren't loaded
+            return [
+                "Agent: Hello, thank you for calling customer service. How may I help you today?",
+                "Customer: Hi, I'm having trouble with my recent order. It hasn't arrived yet.",
+                "Agent: I apologize for the inconvenience. Let me check the status of your order. Could you provide your order number?",
+                "Customer: Yes, it's ABC12345.",
+                "Agent: Thank you. I see your order was shipped two days ago and is scheduled for delivery tomorrow.",
+                "Customer: That's great news! I was worried it got lost.",
+                "Agent: I understand your concern. Is there anything else I can help you with today?",
+                "Customer: No, that's all. Thank you for your help.",
+                "Agent: You're welcome. Have a great day!"
+            ]
+    except Exception as e:
+        print(f"Error generating transcript: {e}")
+        return [
+            "Agent: Hello, thank you for calling customer service. How may I help you today?",
+            "Customer: Hi, I'm having trouble with my recent order. It hasn't arrived yet.",
+            "Agent: I apologize for the inconvenience. Let me check the status of your order. Could you provide your order number?",
+            "Customer: Yes, it's ABC12345.",
+            "Agent: Thank you. I see your order was shipped two days ago and is scheduled for delivery tomorrow.",
+            "Customer: That's great news! I was worried it got lost.",
+            "Agent: I understand your concern. Is there anything else I can help you with today?",
+            "Customer: No, that's all. Thank you for your help.",
+            "Agent: You're welcome. Have a great day!"
+        ]
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
