@@ -16,7 +16,8 @@ const ToneAnalysisChart: React.FC = () => {
   const [data, setData] = useState<{time: number, score: number}[]>([]);
   
   useEffect(() => {
-    if (metrics.toneAnalysis.scores.length > 0) {
+    // Add a null check to ensure toneAnalysis exists and has scores
+    if (metrics.toneAnalysis && metrics.toneAnalysis.scores && metrics.toneAnalysis.scores.length > 0) {
       const chartData = metrics.toneAnalysis.scores.map((score, index) => ({
         time: metrics.toneAnalysis.timestamps[index],
         score: score

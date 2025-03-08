@@ -67,7 +67,6 @@ const initialMetrics: ConversationMetrics = {
   duration: 0,
 };
 
-// API endpoint for the Flask backend
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 const AudioAnalysisContext = createContext<AudioAnalysisContextType | undefined>(undefined);
@@ -86,7 +85,6 @@ export const AudioAnalysisProvider: React.FC<{ children: React.ReactNode }> = ({
       const url = URL.createObjectURL(audioFile);
       setAudioUrl(url);
       
-      // Create audio element for duration
       const audio = new Audio(url);
       audioRef.current = audio;
       
@@ -142,11 +140,9 @@ export const AudioAnalysisProvider: React.FC<{ children: React.ReactNode }> = ({
     setIsAnalysisComplete(false);
 
     try {
-      // Create a FormData object to send the file to the server
       const formData = new FormData();
       formData.append('file', audioFile);
 
-      // First attempt to use the Flask backend
       let useFallback = false;
       
       try {
@@ -161,7 +157,6 @@ export const AudioAnalysisProvider: React.FC<{ children: React.ReactNode }> = ({
         } else {
           const data = await response.json();
           
-          // Update metrics with real data from the backend
           setMetrics(prev => ({
             ...prev,
             sentiment: data.sentiment,
@@ -188,25 +183,20 @@ export const AudioAnalysisProvider: React.FC<{ children: React.ReactNode }> = ({
         useFallback = true;
       }
       
-      // Fallback to the simulation if the backend call fails
       if (useFallback) {
-        // Simulate analysis with progressive updates
         let progress = 0;
         const interval = setInterval(() => {
           progress += 5;
           
-          // Update metrics in "real-time" as analysis progresses
           setMetrics(prev => {
             const newMetrics = { ...prev };
             
-            // Randomized simulated values
             newMetrics.sentiment = {
               positive: Math.min(100, Math.random() * progress),
               neutral: Math.min(100, Math.random() * progress),
               negative: Math.min(100, Math.random() * progress),
             };
             
-            // Generate simulated tone analysis data
             if (progress % 10 === 0) {
               const newTimestamp = newMetrics.toneAnalysis.timestamps.length > 0 
                 ? newMetrics.toneAnalysis.timestamps[newMetrics.toneAnalysis.timestamps.length - 1] + 2
@@ -225,7 +215,6 @@ export const AudioAnalysisProvider: React.FC<{ children: React.ReactNode }> = ({
               resolutionRate: Math.min(100, Math.random() * progress),
             };
             
-            // Add simulated transcript lines
             if (progress % 20 === 0) {
               const speakerPrefix = Math.random() > 0.5 ? "Agent: " : "Customer: ";
               const transcriptLines = [
@@ -249,7 +238,6 @@ export const AudioAnalysisProvider: React.FC<{ children: React.ReactNode }> = ({
             setIsAnalyzing(false);
             setIsAnalysisComplete(true);
             
-            // Set final values
             setMetrics(prev => ({
               ...prev,
               summary: "In this conversation, the customer service agent demonstrated professional behavior and addressed the customer's concerns effectively. The agent maintained a positive tone throughout the call and provided clear information. The customer initially expressed frustration but was satisfied by the end of the call. The agent successfully resolved the customer's issue without escalation.",

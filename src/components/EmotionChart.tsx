@@ -3,31 +3,31 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell } from 'recharts';
 import { useAudioAnalysis } from '@/contexts/AudioAnalysisContext';
+import { Volume2 } from 'lucide-react';
 
 const COLORS = {
-  joy: '#10b981',
-  surprise: '#3b82f6',
-  sadness: '#94a3b8',
-  fear: '#8b5cf6',
-  anger: '#ef4444'
+  positive: '#10b981',
+  neutral: '#94a3b8',
+  negative: '#ef4444'
 };
 
 const EmotionChart: React.FC = () => {
   const { metrics, isAnalyzing } = useAudioAnalysis();
   
   const data = [
-    { name: 'Joy', value: metrics.emotionTraits.joy, color: COLORS.joy },
-    { name: 'Surprise', value: metrics.emotionTraits.surprise, color: COLORS.surprise },
-    { name: 'Sadness', value: metrics.emotionTraits.sadness, color: COLORS.sadness },
-    { name: 'Fear', value: metrics.emotionTraits.fear, color: COLORS.fear },
-    { name: 'Anger', value: metrics.emotionTraits.anger, color: COLORS.anger },
+    { name: 'Positive', value: metrics.sentiment.positive, color: COLORS.positive },
+    { name: 'Neutral', value: metrics.sentiment.neutral, color: COLORS.neutral },
+    { name: 'Negative', value: metrics.sentiment.negative, color: COLORS.negative },
   ];
 
   if (isAnalyzing) {
     return (
       <Card className="h-full">
         <CardHeader className="pb-2">
-          <CardTitle className="text-lg font-medium">Emotion Traits</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-lg font-medium">
+            <Volume2 className="h-4 w-4" />
+            Sentiment Distribution
+          </CardTitle>
         </CardHeader>
         <CardContent className="pb-4 h-[200px] flex items-center justify-center">
           <div className="w-full h-32 animate-shimmer rounded-md"></div>
@@ -39,7 +39,10 @@ const EmotionChart: React.FC = () => {
   return (
     <Card className="h-full">
       <CardHeader className="pb-2">
-        <CardTitle className="text-lg font-medium">Emotion Traits</CardTitle>
+        <CardTitle className="flex items-center gap-2 text-lg font-medium">
+          <Volume2 className="h-4 w-4" />
+          Sentiment Distribution
+        </CardTitle>
       </CardHeader>
       <CardContent className="pb-4 h-[200px]">
         <ResponsiveContainer width="100%" height="100%">
